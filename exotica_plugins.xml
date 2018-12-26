@@ -1,0 +1,6 @@
+<library path="lib/libexotica_nlopt_solver">
+  <!-- UnconstrainedEndPoseProblem -->
+  <class name="exotica/NLoptUnconstrainedEndPoseSolver" type="exotica::NLoptUnconstrainedEndPoseSolver" base_class_type="exotica::MotionSolver">
+    <description>NLopt Unconstrained End Pose Solver</description>
+  </class>
+</library>

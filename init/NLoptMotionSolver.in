@@ -1,0 +1,3 @@
+extend <exotica/MotionSolver>
+Optional std::string Algorithm = "LD_TNEWTON";
+Optional std::string LocalOptimizer = "";  // Only needed for some algorithms, check the manual.

@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>exotica_nlopt_solver</name>
+  <version>1.0.0</version>
+  <description>EXOTica solvers based on NLopt.</description>
+
+  <maintainer email="wolfgang.merkt@ed.ac.uk">Wolfgang Merkt</maintainer>
+
+  <!--   BSD, MIT, Boost Software License, GPLv2, GPLv3, LGPLv2.1, LGPLv3 -->
+  <license>TODO</license>
+
+  <!-- <url type="website">http://wiki.ros.org/exotica_nlopt_solver</url> -->
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>exotica</build_depend>
+  <build_export_depend>exotica</build_export_depend>
+  <exec_depend>exotica</exec_depend>
+
+  <export>
+    <exotica plugin="${prefix}/exotica_plugins.xml" />
+  </export>
+</package>
