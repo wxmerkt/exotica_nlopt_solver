@@ -40,20 +40,23 @@
 
 #include <exotica_nlopt_solver/NLoptUnconstrainedEndPoseSolverInitializer.h>
 
-#include <nlopt.hpp>
-#include "nlopt-util.hpp"
+// Note: We are using the C and not the C++ API as the latter requires copy
+// operations for the evaluation functions (in order to use std::vector)
+#include <nlopt.h>
 
 namespace exotica
 {
 template <typename Problem>
-double end_pose_problem_vfunc(const std::vector<double> &x, std::vector<double> &grad, void *my_func_data)
+double end_pose_problem_func(unsigned n, const double *x,
+                             double *gradient, /* NULL if not needed */
+                             void *func_data)
 {
-    Problem *prob = reinterpret_cast<Problem *>(my_func_data);
-    Eigen::VectorXd q = Eigen::Map<const Eigen::VectorXd>(x.data(), x.size());
+    Problem *prob = reinterpret_cast<Problem *>(func_data);
+    Eigen::VectorXd q = Eigen::Map<const Eigen::VectorXd>(x, n);
     prob->Update(q);
-    if (!grad.empty())
+    if (gradient != NULL)
     {
-        auto grad_eigen = Eigen::Map<Eigen::VectorXd>(grad.data(), grad.size());
+        auto grad_eigen = Eigen::Map<Eigen::VectorXd>(gradient, n);
         grad_eigen = prob->getScalarJacobian();
     }
     return prob->getScalarCost();
@@ -64,7 +67,7 @@ class NLoptEndPoseSolver : public MotionSolver, public Instantiable<ProblemIniti
 {
 public:
     NLoptEndPoseSolver() = default;
-    ~NLoptEndPoseSolver() = default;
+    virtual ~NLoptEndPoseSolver() = default;
 
     void Instantiate(ProblemInitializer &init) override
     {
@@ -100,7 +103,7 @@ public:
             // Steven G. Johnson.  The Fortran source was downloaded from:
 
             // 	http://www4.ncsu.edu/~ctk/SOFTWARE/DIRECTv204.tar.gz
-            algorithm_ = nlopt::GN_DIRECT;
+            algorithm_ = nlopt_algorithm::NLOPT_GN_DIRECT;
         }
         else if (init.Algorithm == "NLOPT_GN_DIRECT_L")
         {
@@ -124,7 +127,7 @@ public:
             // hidden constraint is represented by returning NaN (or Inf, or
             // HUGE_VAL) from the objective function at any points violating the
             // constraint.
-            algorithm_ = nlopt::GN_DIRECT_L;
+            algorithm_ = nlopt_algorithm::NLOPT_GN_DIRECT_L;
         }
         // NLOPT_GN_DIRECT_L_RAND,
         // NLOPT_GN_DIRECT_NOSCAL,
@@ -154,7 +157,7 @@ public:
             // 	IMM-REP-1998-04, Department of Mathematical Modelling,
             // 	Technical University of Denmark, DK-2800 Lyngby, Denmark, 1998.
             // 	[ included as techreport.pdf ]
-            algorithm_ = nlopt::GD_STOGO;
+            algorithm_ = nlopt_algorithm::NLOPT_GD_STOGO;
         }
         // NLOPT_GD_STOGO_RAND,
 
@@ -168,6 +171,10 @@ public:
         // NLOPT_LD_VAR2,
 
         // NLOPT_LD_TNEWTON,
+        else if (init.Algorithm == "NLOPT_LD_TNEWTON")
+        {
+            algorithm_ = nlopt_algorithm::NLOPT_LD_TNEWTON;
+        }
         // NLOPT_LD_TNEWTON_RESTART,
         // NLOPT_LD_TNEWTON_PRECOND,
         // NLOPT_LD_TNEWTON_PRECOND_RESTART,
@@ -244,26 +251,79 @@ public:
         // prob_->resetCostEvolution(parameters.iterations + 1);
         // prob_->setCostEvolution(0, f(q0));
 
-        Eigen::VectorXd q = nloptutil::solve(
-            q0,                                // initial state
-            Eigen::VectorXd(),                 // upper bounds
-            Eigen::VectorXd(),                 // lower bounds
-            &end_pose_problem_vfunc<Problem>,  // objective function
-            std::vector<nlopt::vfunc>(),       // equality constraints
-            std::vector<nlopt::vfunc>(),       // inequality constraints
-            algorithm_,                        // algorithm, set in Instantiate
-            local_optimizer_,                  // loal optimizer, set in Instantiate
-            (void *)prob_.get());              // problem raw pointer, will get passed as user data to evaluation functions
-        solution.row(0) = q;
+        // Create optimisation solver
+        nlopt_opt opt = nlopt_create(algorithm_, prob_->N);
 
+        // TODO: Set upper bounds
+        // TODO: Set lower bounds
+
+        // Set minimization objective
+        nlopt_set_min_objective(opt, &end_pose_problem_func<Problem>, (void *)prob_.get());
+
+        // Set tolerances
+        nlopt_set_maxeval(opt, getNumberOfMaxIterations());  // Note: Not strictly true - this is function evaluations and not iterations...
+        nlopt_set_ftol_rel(opt, 1e-6);                       // TODO: Make parameters
+        nlopt_set_xtol_rel(opt, 1e-6);                       // TODO: Make parameters
+
+        // TODO: Set equality constraints
+        // for (auto func : equality_constraints)
+        // {
+        //     solver.add_equality_constraint(func, data, internal::constraint_tol);
+        // }
+
+        // TODO: Set inequality constraints
+        // for (auto func : inequality_constraints)
+        // {
+        //     solver.add_inequality_constraint(func, data, internal::constraint_tol);
+        // }
+
+        // Create and assign local optimizer, if required
+        if (local_optimizer_ != nlopt_algorithm::NLOPT_NUM_ALGORITHMS)
+        {
+            throw_pretty("not yet supported");
+            // solver.set_local_optimizer(local_optimizer);
+        }
+
+        // Record the cost value for the initial solution
+        double initial_cost_value = end_pose_problem_func<Problem>(prob_->N, q0.data(), nullptr, (void *)prob_.get());
+
+        // TODO: Scale the initial step size (only for derivative-free algorithms such as nlopt::LN_COBYLA)
+        // const std::vector<double> step = [&]()
+        // {
+        //     std::vector<double> step(M, 0.0);
+        //     solver.get_initial_step(x_star, step);
+        //     for (auto& d : step) { d *= initial_step_scale; }
+        //     return step;
+        // }();
+        // solver.set_initial_step(step);
+
+        // Run the optimization
+        double final_cost_value;
+        nlopt_result info = nlopt_optimize(opt, q0.data(), &final_cost_value);
+
+        // Show statistics if "verbose" is set as true
+        if (debug_)
+        {
+            HIGHLIGHT_NAMED("NLoptEndPoseSolver", "Info: " << (int)info);
+            std::cout << "------ nlopt ------" << std::endl;
+            std::cout << "Dimensions     : " << prob_->N << std::endl;
+            std::cout << "Function value : " << initial_cost_value << " => " << final_cost_value << std::endl;
+            std::cout << "Elapsed time   : " << timer.getDuration() << " [s]" << std::endl;
+            std::cout << "--------------------" << std::endl;
+        }
+
+        solution.row(0) = q0;
         planning_time_ = timer.getDuration();
+
+        // Destroy/clean-up
+        nlopt_destroy(opt);
     }
 
 private:
     std::shared_ptr<Problem> prob_;  // Shared pointer to the planning problem.
 
-    nlopt::algorithm algorithm_;        ///< Selected optimization algorithm.
-    nlopt::algorithm local_optimizer_;  ///< Local optimization, if required by the selected algorithm.
+    nlopt_algorithm algorithm_ = nlopt_algorithm::NLOPT_NUM_ALGORITHMS;        ///< Selected optimization algorithm.
+    nlopt_algorithm local_optimizer_ = nlopt_algorithm::NLOPT_NUM_ALGORITHMS;  ///< Local optimization, if required by the selected algorithm.
 };
 
 typedef NLoptEndPoseSolver<UnconstrainedEndPoseProblem, NLoptUnconstrainedEndPoseSolverInitializer> NLoptUnconstrainedEndPoseSolver;
