@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <IKSolverDemoConfig>
-    <NLoptEndPoseSolver Name="MySolver" Debug="1" />
+    <NLoptEndPoseSolver Name="MySolver" Algorithm="NLOPT_AUGLAG" Debug="1" />
 
     <EndPoseProblem Name="FigureEightTracking">
         <PlanningScene>

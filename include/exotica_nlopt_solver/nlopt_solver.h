@@ -77,7 +77,7 @@ void end_pose_problem_inequality_constraint_mfunc(unsigned m, double *result, un
     neq = prob->getInequality();
     if (gradient != nullptr)
     {
-        auto grad_eigen = Eigen::Map<Eigen::MatrixXd>(gradient, n, m);
+        Eigen::MatrixXd grad_eigen = Eigen::Map<Eigen::MatrixXd>(gradient, m, n);
         grad_eigen = prob->getInequalityJacobian();
     }
 }
@@ -93,7 +93,7 @@ void end_pose_problem_equality_constraint_mfunc(unsigned m, double *result, unsi
     neq = prob->getEquality();
     if (gradient != nullptr)
     {
-        auto grad_eigen = Eigen::Map<Eigen::MatrixXd>(gradient, n, m);
+        Eigen::MatrixXd grad_eigen = Eigen::Map<Eigen::MatrixXd>(gradient, m, n);
         grad_eigen = prob->getEqualityJacobian();
     }
 }
@@ -239,7 +239,7 @@ public:
         else if (init.Algorithm == "NLOPT_LD_AUGLAG")
         {
             algorithm_ = nlopt_algorithm::NLOPT_LD_AUGLAG;
-            local_optimizer_ = nlopt_algorithm::NLOPT_LD_MMA; //NLOPT_LD_TNEWTON;
+            // local_optimizer_ = nlopt_algorithm::NLOPT_LD_MMA; //NLOPT_LD_TNEWTON;
         }
 
         // NLOPT_LN_BOBYQA,
@@ -252,6 +252,11 @@ public:
         // NLOPT_AUGLAG_EQ,
         // NLOPT_G_MLSL,
         // NLOPT_G_MLSL_LDS,
+        else if (init.Algorithm == "NLOPT_AUGLAG")
+        {
+            algorithm_ = nlopt_algorithm::NLOPT_AUGLAG;
+            local_optimizer_ = nlopt_algorithm::NLOPT_LD_MMA;  //NLOPT_LD_TNEWTON;
+        }
 
         // NLOPT_LD_SLSQP,
 
@@ -364,12 +369,11 @@ protected:
 
     virtual void set_bounds(nlopt_opt my_opt) {}       // To be reimplemented in bounded problems
     virtual void set_constraints(nlopt_opt my_opt) {}  // To be reimplemented in constrained problems
-
     void set_tolerances(nlopt_opt my_opt)
     {
-        // nlopt_set_maxeval(opt, getNumberOfMaxIterations());  // Note: Not strictly true - this is function evaluations and not iterations...
-        // nlopt_set_ftol_rel(my_opt, 1e-6);  // TODO: Make parameters
-        // nlopt_set_xtol_rel(my_opt, 1e-6);  // TODO: Make parameters
+        nlopt_set_maxeval(my_opt, 10 * getNumberOfMaxIterations());  // Note: Not strictly true - this is function evaluations and not iterations...
+        nlopt_set_ftol_rel(my_opt, 1e-6);                            // TODO: Make parameters
+        nlopt_set_xtol_rel(my_opt, 1e-6);                            // TODO: Make parameters
         // nlopt_set_ftol_abs(my_opt, 1e-9);
     }
 };
