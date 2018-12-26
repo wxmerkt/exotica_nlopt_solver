@@ -1,1 +1,2 @@
 extend <exotica_nlopt_solver/NLoptMotionSolver>
+Optional std::string Algorithm = "NLOPT_LD_AUGLAG";
