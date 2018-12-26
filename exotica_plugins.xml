@@ -3,4 +3,12 @@
   <class name="exotica/NLoptUnconstrainedEndPoseSolver" type="exotica::NLoptUnconstrainedEndPoseSolver" base_class_type="exotica::MotionSolver">
     <description>NLopt Unconstrained End Pose Solver</description>
   </class>
+  <!-- BoundedEndPoseProblem -->
+  <class name="exotica/NLoptBoundedEndPoseSolver" type="exotica::NLoptBoundedEndPoseSolver" base_class_type="exotica::MotionSolver">
+    <description>NLopt Bounded End Pose Solver</description>
+  </class>
+  <!-- EndPoseProblem -->
+  <class name="exotica/NLoptEndPoseSolver" type="exotica::NLoptEndPoseSolver" base_class_type="exotica::MotionSolver">
+    <description>NLopt End Pose Solver</description>
+  </class>
 </library>

@@ -32,4 +32,6 @@
 
 #include "exotica_nlopt_solver/nlopt_solver.h"
 
+REGISTER_MOTIONSOLVER_TYPE("NLoptBoundedEndPoseSolver", exotica::NLoptBoundedEndPoseSolver)
+REGISTER_MOTIONSOLVER_TYPE("NLoptEndPoseSolver", exotica::NLoptEndPoseSolver)
 REGISTER_MOTIONSOLVER_TYPE("NLoptUnconstrainedEndPoseSolver", exotica::NLoptUnconstrainedEndPoseSolver)

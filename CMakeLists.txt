@@ -17,6 +17,8 @@ ExternalProject_Add(
 
 AddInitializer(
   NLoptMotionSolver
+  NLoptBoundedEndPoseSolver
+  NLoptEndPoseSolver
   NLoptUnconstrainedEndPoseSolver
 )
 GenInitializers()

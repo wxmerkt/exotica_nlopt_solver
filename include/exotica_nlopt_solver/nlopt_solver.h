@@ -36,8 +36,12 @@
 #include <iostream>
 
 #include <exotica/MotionSolver.h>
+#include <exotica/Problems/BoundedEndPoseProblem.h>
+#include <exotica/Problems/EndPoseProblem.h>
 #include <exotica/Problems/UnconstrainedEndPoseProblem.h>
 
+#include <exotica_nlopt_solver/NLoptBoundedEndPoseSolverInitializer.h>
+#include <exotica_nlopt_solver/NLoptEndPoseSolverInitializer.h>
 #include <exotica_nlopt_solver/NLoptUnconstrainedEndPoseSolverInitializer.h>
 
 // Note: We are using the C and not the C++ API as the latter requires copy
@@ -62,16 +66,32 @@ double end_pose_problem_func(unsigned n, const double *x,
     return prob->getScalarCost();
 }
 
+// template <typename Problem>
+// double inequality_func(unsigned n, const double *x,
+//                              double *gradient, /* NULL if not needed */
+//                              void *func_data)
+// {
+//     Problem *prob = reinterpret_cast<Problem *>(func_data);
+//     Eigen::VectorXd q = Eigen::Map<const Eigen::VectorXd>(x, n);
+//     prob->Update(q);
+//     if (gradient != NULL)
+//     {
+//         auto grad_eigen = Eigen::Map<Eigen::VectorXd>(gradient, n);
+//         grad_eigen = prob->getInequalityJacobian();
+//     }
+//     return prob->getInequality();
+// }
+
 template <typename Problem, typename ProblemInitializer>
-class NLoptEndPoseSolver : public MotionSolver, public Instantiable<ProblemInitializer>
+class NLoptGenericEndPoseSolver : public MotionSolver, public Instantiable<ProblemInitializer>
 {
 public:
-    NLoptEndPoseSolver() = default;
-    virtual ~NLoptEndPoseSolver() = default;
+    NLoptGenericEndPoseSolver() = default;
+    virtual ~NLoptGenericEndPoseSolver() = default;
 
     void Instantiate(ProblemInitializer &init) override
     {
-        HIGHLIGHT_NAMED("NLoptEndPoseSolver", "Instantiating");
+        HIGHLIGHT_NAMED("NLoptGenericEndPoseSolver", "Instantiating");
 
         // TODO: Select algorithm
         // From https://github.com/stevengj/nlopt/blob/master/src/api/nlopt.h#L72
@@ -228,7 +248,7 @@ public:
     {
         if (pointer->type().find("EndPoseProblem") == std::string::npos)
         {
-            throw_named("NLoptEndPoseSolver can't solve problem of type '"
+            throw_named("NLoptGenericEndPoseSolver can't solve problem of type '"
                         << pointer->type() << "'!");
         }
         MotionSolver::specifyProblem(pointer);
@@ -254,8 +274,8 @@ public:
         // Create optimisation solver
         nlopt_opt opt = nlopt_create(algorithm_, prob_->N);
 
-        // TODO: Set upper bounds
-        // TODO: Set lower bounds
+        // If problem supports bounds, set bounds
+        set_bounds(opt);
 
         // Set minimization objective
         nlopt_set_min_objective(opt, &end_pose_problem_func<Problem>, (void *)prob_.get());
@@ -287,24 +307,23 @@ public:
         // Record the cost value for the initial solution
         double initial_cost_value = end_pose_problem_func<Problem>(prob_->N, q0.data(), nullptr, (void *)prob_.get());
 
-        // TODO: Scale the initial step size (only for derivative-free algorithms such as nlopt::LN_COBYLA)
-        // const std::vector<double> step = [&]()
-        // {
-        //     std::vector<double> step(M, 0.0);
-        //     solver.get_initial_step(x_star, step);
-        //     for (auto& d : step) { d *= initial_step_scale; }
-        //     return step;
-        // }();
-        // solver.set_initial_step(step);
+        // Scale the initial step size (only for derivative-free algorithms)
+        constexpr double initial_step_scale = 1.0;
+        Eigen::VectorXd initial_step = Eigen::VectorXd::Zero(prob_->N);
+        nlopt_get_initial_step(opt, q0.data(), initial_step.data());
+        initial_step *= initial_step_scale;
+        nlopt_set_initial_step(opt, initial_step.data());
 
         // Run the optimization
         double final_cost_value;
         nlopt_result info = nlopt_optimize(opt, q0.data(), &final_cost_value);
+        if (info < 0)
+            WARNING("Optimization did not exit cleanly! " << (int)info);
 
         // Show statistics if "verbose" is set as true
         if (debug_)
         {
-            HIGHLIGHT_NAMED("NLoptEndPoseSolver", "Info: " << (int)info);
+            HIGHLIGHT_NAMED("NLoptGenericEndPoseSolver", "Info: " << (int)info);
             std::cout << "------ nlopt ------" << std::endl;
             std::cout << "Dimensions     : " << prob_->N << std::endl;
             std::cout << "Function value : " << initial_cost_value << " => " << final_cost_value << std::endl;
@@ -319,14 +338,39 @@ public:
         nlopt_destroy(opt);
     }
 
-private:
+protected:
     std::shared_ptr<Problem> prob_;  // Shared pointer to the planning problem.
 
     nlopt_algorithm algorithm_ = nlopt_algorithm::NLOPT_NUM_ALGORITHMS;        ///< Selected optimization algorithm.
     nlopt_algorithm local_optimizer_ = nlopt_algorithm::NLOPT_NUM_ALGORITHMS;  ///< Local optimization, if required by the selected algorithm.
+
+    virtual void set_bounds(nlopt_opt my_opt) {}       // To be reimplemented in bounded problems
+    virtual void set_constraints(nlopt_opt my_opt) {}  // To be reimplemented in constrained problems
 };
 
-typedef NLoptEndPoseSolver<UnconstrainedEndPoseProblem, NLoptUnconstrainedEndPoseSolverInitializer> NLoptUnconstrainedEndPoseSolver;
+// TODO: This could likely be made much neater without copy-paste with some
+// combination of std::enable_if and std::is_same.
+template <>
+void NLoptGenericEndPoseSolver<BoundedEndPoseProblem, NLoptBoundedEndPoseSolverInitializer>::set_bounds(nlopt_opt my_opt)
+{
+    const Eigen::VectorXd lower_bounds = prob_->getBounds().col(0);
+    const Eigen::VectorXd upper_bounds = prob_->getBounds().col(1);
+    nlopt_set_lower_bounds(my_opt, lower_bounds.data());
+    nlopt_set_upper_bounds(my_opt, upper_bounds.data());
+}
+
+template <>
+void NLoptGenericEndPoseSolver<EndPoseProblem, NLoptEndPoseSolverInitializer>::set_bounds(nlopt_opt my_opt)
+{
+    const Eigen::VectorXd lower_bounds = prob_->getBounds().col(0);
+    const Eigen::VectorXd upper_bounds = prob_->getBounds().col(1);
+    nlopt_set_lower_bounds(my_opt, lower_bounds.data());
+    nlopt_set_upper_bounds(my_opt, upper_bounds.data());
+}
+
+typedef NLoptGenericEndPoseSolver<BoundedEndPoseProblem, NLoptBoundedEndPoseSolverInitializer> NLoptBoundedEndPoseSolver;
+typedef NLoptGenericEndPoseSolver<EndPoseProblem, NLoptEndPoseSolverInitializer> NLoptEndPoseSolver;
+typedef NLoptGenericEndPoseSolver<UnconstrainedEndPoseProblem, NLoptUnconstrainedEndPoseSolverInitializer> NLoptUnconstrainedEndPoseSolver;
 }  // namespace exotica
 
 #endif  // EXOTICA_NLOPT_SOLVER_NLOPT_SOLVER_H_
