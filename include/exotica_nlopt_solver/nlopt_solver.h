@@ -239,7 +239,7 @@ public:
         else if (init.Algorithm == "NLOPT_LD_AUGLAG")
         {
             algorithm_ = nlopt_algorithm::NLOPT_LD_AUGLAG;
-            local_optimizer_ = nlopt_algorithm::NLOPT_LD_TNEWTON;
+            local_optimizer_ = nlopt_algorithm::NLOPT_LD_MMA; //NLOPT_LD_TNEWTON;
         }
 
         // NLOPT_LN_BOBYQA,
@@ -304,13 +304,11 @@ public:
         // Set minimization objective
         {
             nlopt_result info = nlopt_set_min_objective(opt, &end_pose_problem_objective_func<Problem>, (void *)prob_.get());
-            if (info != 1) WARNING("Error while setting objective function: " << (int)info);
+            if (info != 1) WARNING("Error while setting objective function: " << (int)info << ": " << nlopt_get_errmsg(opt));
         }
 
         // Set tolerances
-        nlopt_set_maxeval(opt, getNumberOfMaxIterations());  // Note: Not strictly true - this is function evaluations and not iterations...
-        nlopt_set_ftol_rel(opt, 1e-6);                       // TODO: Make parameters
-        nlopt_set_xtol_rel(opt, 1e-6);                       // TODO: Make parameters
+        set_tolerances(opt);
 
         // Create and assign local optimizer, if required
         nlopt_opt local_opt = nullptr;
@@ -318,7 +316,9 @@ public:
         {
             local_opt = nlopt_create(local_optimizer_, prob_->N);
             nlopt_result info = nlopt_set_local_optimizer(opt, local_opt);
-            if (info != 1) WARNING("Error while setting local optimizer: " << (int)info);
+            set_bounds(local_opt);
+            set_tolerances(local_opt);
+            if (info != 1) WARNING("Error while setting local optimizer: " << (int)info << ": " << nlopt_get_errmsg(opt));
         }
 
         // Record the cost value for the initial solution
@@ -337,6 +337,9 @@ public:
         if (info < 0)
             WARNING("Optimization did not exit cleanly! " << (int)info);
 
+        solution.row(0) = q0;
+        planning_time_ = timer.getDuration();
+
         // Show statistics if "verbose" is set as true
         if (debug_)
         {
@@ -344,12 +347,9 @@ public:
             std::cout << "------ nlopt ------" << std::endl;
             std::cout << "Dimensions     : " << prob_->N << std::endl;
             std::cout << "Function value : " << initial_cost_value << " => " << final_cost_value << std::endl;
-            std::cout << "Elapsed time   : " << timer.getDuration() << " [s]" << std::endl;
+            std::cout << "Elapsed time   : " << planning_time_ << " [s]" << std::endl;
             std::cout << "--------------------" << std::endl;
         }
-
-        solution.row(0) = q0;
-        planning_time_ = timer.getDuration();
 
         // Destroy/clean-up
         nlopt_destroy(opt);
@@ -364,6 +364,14 @@ protected:
 
     virtual void set_bounds(nlopt_opt my_opt) {}       // To be reimplemented in bounded problems
     virtual void set_constraints(nlopt_opt my_opt) {}  // To be reimplemented in constrained problems
+
+    void set_tolerances(nlopt_opt my_opt)
+    {
+        // nlopt_set_maxeval(opt, getNumberOfMaxIterations());  // Note: Not strictly true - this is function evaluations and not iterations...
+        // nlopt_set_ftol_rel(my_opt, 1e-6);  // TODO: Make parameters
+        // nlopt_set_xtol_rel(my_opt, 1e-6);  // TODO: Make parameters
+        // nlopt_set_ftol_abs(my_opt, 1e-9);
+    }
 };
 
 // TODO: This could likely be made much neater without copy-paste with some
@@ -375,11 +383,11 @@ void NLoptGenericEndPoseSolver<BoundedEndPoseProblem, NLoptBoundedEndPoseSolverI
     const Eigen::VectorXd upper_bounds = prob_->getBounds().col(1);
     {
         nlopt_result info = nlopt_set_lower_bounds(my_opt, lower_bounds.data());
-        if (info != 1) WARNING("Error while setting lower bounds: " << (int)info);
+        if (info != 1) WARNING("Error while setting lower bounds: " << (int)info << ": " << nlopt_get_errmsg(my_opt));
     }
     {
         nlopt_result info = nlopt_set_upper_bounds(my_opt, upper_bounds.data());
-        if (info != 1) WARNING("Error while setting upper bounds: " << (int)info);
+        if (info != 1) WARNING("Error while setting upper bounds: " << (int)info << ": " << nlopt_get_errmsg(my_opt));
     }
 }
 
@@ -390,31 +398,36 @@ void NLoptGenericEndPoseSolver<EndPoseProblem, NLoptEndPoseSolverInitializer>::s
     const Eigen::VectorXd upper_bounds = prob_->getBounds().col(1);
     {
         nlopt_result info = nlopt_set_lower_bounds(my_opt, lower_bounds.data());
-        if (info != 1) WARNING("Error while setting lower bounds: " << (int)info);
+        if (info != 1) WARNING("Error while setting lower bounds: " << (int)info << ": " << nlopt_get_errmsg(my_opt));
     }
     {
         nlopt_result info = nlopt_set_upper_bounds(my_opt, upper_bounds.data());
-        if (info != 1) WARNING("Error while setting upper bounds: " << (int)info);
+        if (info != 1) WARNING("Error while setting upper bounds: " << (int)info << ": " << nlopt_get_errmsg(my_opt));
     }
 }
 
 template <>
 void NLoptGenericEndPoseSolver<EndPoseProblem, NLoptEndPoseSolverInitializer>::set_constraints(nlopt_opt my_opt)
 {
-    HIGHLIGHT("Setting constraints");
-
     {
+        if (!my_opt) throw_pretty("opt is dead");
         const unsigned int &m_neq = prob_->Inequality.PhiN;
-        const Eigen::VectorXd tol_neq = prob_->init_.InequalityFeasibilityTolerance * Eigen::VectorXd::Ones(m_neq);
-        nlopt_result info = nlopt_add_inequality_mconstraint(my_opt, m_neq, &end_pose_problem_inequality_constraint_mfunc<EndPoseProblem>, (void *)prob_.get(), tol_neq.data());
-        if (info != 1) WARNING("Error while setting inequality constraints: " << (int)info);
+        if (m_neq > 0)
+        {
+            const Eigen::VectorXd tol_neq = prob_->init_.InequalityFeasibilityTolerance * Eigen::VectorXd::Ones(m_neq);
+            nlopt_result info = nlopt_add_inequality_mconstraint(my_opt, m_neq, &end_pose_problem_inequality_constraint_mfunc<EndPoseProblem>, (void *)prob_.get(), tol_neq.data());
+            if (info != 1) WARNING("Error while setting inequality constraints: " << (int)info << ": " << nlopt_get_errmsg(my_opt));
+        }
     }
 
     {
         const unsigned int &m_eq = prob_->Equality.PhiN;
-        const Eigen::VectorXd tol_eq = prob_->init_.EqualityFeasibilityTolerance * Eigen::VectorXd::Ones(m_eq);
-        nlopt_result info = nlopt_add_equality_mconstraint(my_opt, m_eq, &end_pose_problem_equality_constraint_mfunc<EndPoseProblem>, (void *)prob_.get(), tol_eq.data());
-        if (info != 1) WARNING("Error while setting equality constraints: " << (int)info);
+        if (m_eq > 0)
+        {
+            const Eigen::VectorXd tol_eq = prob_->init_.EqualityFeasibilityTolerance * Eigen::VectorXd::Ones(m_eq);
+            nlopt_result info = nlopt_add_equality_mconstraint(my_opt, m_eq, &end_pose_problem_equality_constraint_mfunc<EndPoseProblem>, (void *)prob_.get(), tol_eq.data());
+            if (info != 1) WARNING("Error while setting equality constraints: " << (int)info << ": " << nlopt_get_errmsg(my_opt));
+        }
     }
 }
 
