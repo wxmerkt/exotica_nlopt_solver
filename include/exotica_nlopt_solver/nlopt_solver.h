@@ -51,11 +51,22 @@
 namespace exotica
 {
 template <typename Problem>
+struct ProblemWrapperData
+{
+    ProblemWrapperData(Problem *problem_in) : problem(problem_in) {}
+    int objective_function_evaluations = 0;
+    int inequality_function_evaluations = 0;
+    int equality_function_evaluations = 0;
+    Problem *problem = nullptr;
+};
+
+template <typename Problem>
 double end_pose_problem_objective_func(unsigned n, const double *x,
                                        double *gradient, /* nullptr if not needed */
                                        void *func_data)
 {
-    Problem *prob = reinterpret_cast<Problem *>(func_data);
+    ProblemWrapperData<Problem> *data = reinterpret_cast<ProblemWrapperData<Problem> *>(func_data);
+    Problem *prob = reinterpret_cast<Problem *>(data->problem);
     Eigen::VectorXd q = Eigen::Map<const Eigen::VectorXd>(x, n);
     prob->Update(q);
     if (gradient != nullptr)
@@ -63,13 +74,15 @@ double end_pose_problem_objective_func(unsigned n, const double *x,
         auto grad_eigen = Eigen::Map<Eigen::VectorXd>(gradient, n);
         grad_eigen = prob->getScalarJacobian();
     }
+    data->objective_function_evaluations++;
     return prob->getScalarCost();
 }
 
 template <typename Problem>
 void end_pose_problem_inequality_constraint_mfunc(unsigned m, double *result, unsigned n, const double *x, double *gradient, void *func_data)
 {
-    Problem *prob = reinterpret_cast<Problem *>(func_data);
+    ProblemWrapperData<Problem> *data = reinterpret_cast<ProblemWrapperData<Problem> *>(func_data);
+    Problem *prob = reinterpret_cast<Problem *>(data->problem);
     Eigen::VectorXd q = Eigen::Map<const Eigen::VectorXd>(x, n);
     Eigen::VectorXd neq = Eigen::Map<const Eigen::VectorXd>(result, m);
     prob->Update(q);
@@ -80,12 +93,14 @@ void end_pose_problem_inequality_constraint_mfunc(unsigned m, double *result, un
         Eigen::MatrixXd grad_eigen = Eigen::Map<Eigen::MatrixXd>(gradient, m, n);
         grad_eigen = prob->getInequalityJacobian();
     }
+    data->inequality_function_evaluations++;
 }
 
 template <typename Problem>
 void end_pose_problem_equality_constraint_mfunc(unsigned m, double *result, unsigned n, const double *x, double *gradient, void *func_data)
 {
-    Problem *prob = reinterpret_cast<Problem *>(func_data);
+    ProblemWrapperData<Problem> *data = reinterpret_cast<ProblemWrapperData<Problem> *>(func_data);
+    Problem *prob = reinterpret_cast<Problem *>(data->problem);
     Eigen::VectorXd q = Eigen::Map<const Eigen::VectorXd>(x, n);
     Eigen::VectorXd neq = Eigen::Map<const Eigen::VectorXd>(result, m);
     prob->Update(q);
@@ -96,6 +111,7 @@ void end_pose_problem_equality_constraint_mfunc(unsigned m, double *result, unsi
         Eigen::MatrixXd grad_eigen = Eigen::Map<Eigen::MatrixXd>(gradient, m, n);
         grad_eigen = prob->getEqualityJacobian();
     }
+    data->equality_function_evaluations++;
 }
 
 template <typename Problem, typename ProblemInitializer>
@@ -259,6 +275,10 @@ public:
         }
 
         // NLOPT_LD_SLSQP,
+        else if (init.Algorithm == "NLOPT_LD_SLSQP")
+        {
+            algorithm_ = nlopt_algorithm::NLOPT_LD_SLSQP;
+        }
 
         // NLOPT_LD_CCSAQ,
 
@@ -297,6 +317,9 @@ public:
         // prob_->resetCostEvolution(parameters.iterations + 1);
         // prob_->setCostEvolution(0, f(q0));
 
+        // Create wrapper
+        data_.reset(new ProblemWrapperData<Problem>(prob_.get()));
+
         // Create optimisation solver
         nlopt_opt opt = nlopt_create(algorithm_, prob_->N);
 
@@ -308,7 +331,7 @@ public:
 
         // Set minimization objective
         {
-            nlopt_result info = nlopt_set_min_objective(opt, &end_pose_problem_objective_func<Problem>, (void *)prob_.get());
+            nlopt_result info = nlopt_set_min_objective(opt, &end_pose_problem_objective_func<Problem>, (void *)data_.get());
             if (info != 1) WARNING("Error while setting objective function: " << (int)info << ": " << nlopt_get_errmsg(opt));
         }
 
@@ -327,7 +350,7 @@ public:
         }
 
         // Record the cost value for the initial solution
-        double initial_cost_value = end_pose_problem_objective_func<Problem>(prob_->N, q0.data(), nullptr, (void *)prob_.get());
+        double initial_cost_value = end_pose_problem_objective_func<Problem>(prob_->N, q0.data(), nullptr, (void *)data_.get());
 
         // Scale the initial step size (only for derivative-free algorithms)
         constexpr double initial_step_scale = 1.0;
@@ -351,6 +374,7 @@ public:
             HIGHLIGHT_NAMED("NLoptGenericEndPoseSolver", "Info: " << (int)info);
             std::cout << "------ nlopt ------" << std::endl;
             std::cout << "Dimensions     : " << prob_->N << std::endl;
+            std::cout << "  f(obj/eq/neq): " << data_->objective_function_evaluations << " / " << data_->equality_function_evaluations << " / " << data_->inequality_function_evaluations << std::endl;
             std::cout << "Function value : " << initial_cost_value << " => " << final_cost_value << std::endl;
             std::cout << "Elapsed time   : " << planning_time_ << " [s]" << std::endl;
             std::cout << "--------------------" << std::endl;
@@ -363,6 +387,7 @@ public:
 
 protected:
     std::shared_ptr<Problem> prob_;  // Shared pointer to the planning problem.
+    std::shared_ptr<ProblemWrapperData<Problem>> data_ = nullptr;
 
     nlopt_algorithm algorithm_ = nlopt_algorithm::NLOPT_NUM_ALGORITHMS;        ///< Selected optimization algorithm.
     nlopt_algorithm local_optimizer_ = nlopt_algorithm::NLOPT_NUM_ALGORITHMS;  ///< Local optimization, if required by the selected algorithm.
@@ -371,9 +396,9 @@ protected:
     virtual void set_constraints(nlopt_opt my_opt) {}  // To be reimplemented in constrained problems
     void set_tolerances(nlopt_opt my_opt)
     {
-        nlopt_set_maxeval(my_opt, 10 * getNumberOfMaxIterations());  // Note: Not strictly true - this is function evaluations and not iterations...
-        nlopt_set_ftol_rel(my_opt, 1e-6);                            // TODO: Make parameters
-        nlopt_set_xtol_rel(my_opt, 1e-6);                            // TODO: Make parameters
+        nlopt_set_maxeval(my_opt, 10000); //10 * getNumberOfMaxIterations());  // Note: Not strictly true - this is function evaluations and not iterations...
+        // nlopt_set_ftol_rel(my_opt, 1e-6);                            // TODO: Make parameters
+        // nlopt_set_xtol_rel(my_opt, 1e-6);                            // TODO: Make parameters
         // nlopt_set_ftol_abs(my_opt, 1e-9);
     }
 };
@@ -419,7 +444,7 @@ void NLoptGenericEndPoseSolver<EndPoseProblem, NLoptEndPoseSolverInitializer>::s
         if (m_neq > 0)
         {
             const Eigen::VectorXd tol_neq = prob_->init_.InequalityFeasibilityTolerance * Eigen::VectorXd::Ones(m_neq);
-            nlopt_result info = nlopt_add_inequality_mconstraint(my_opt, m_neq, &end_pose_problem_inequality_constraint_mfunc<EndPoseProblem>, (void *)prob_.get(), tol_neq.data());
+            nlopt_result info = nlopt_add_inequality_mconstraint(my_opt, m_neq, &end_pose_problem_inequality_constraint_mfunc<EndPoseProblem>, (void *)data_.get(), tol_neq.data());
             if (info != 1) WARNING("Error while setting inequality constraints: " << (int)info << ": " << nlopt_get_errmsg(my_opt));
         }
     }
@@ -429,7 +454,7 @@ void NLoptGenericEndPoseSolver<EndPoseProblem, NLoptEndPoseSolverInitializer>::s
         if (m_eq > 0)
         {
             const Eigen::VectorXd tol_eq = prob_->init_.EqualityFeasibilityTolerance * Eigen::VectorXd::Ones(m_eq);
-            nlopt_result info = nlopt_add_equality_mconstraint(my_opt, m_eq, &end_pose_problem_equality_constraint_mfunc<EndPoseProblem>, (void *)prob_.get(), tol_eq.data());
+            nlopt_result info = nlopt_add_equality_mconstraint(my_opt, m_eq, &end_pose_problem_equality_constraint_mfunc<EndPoseProblem>, (void *)data_.get(), tol_eq.data());
             if (info != 1) WARNING("Error while setting equality constraints: " << (int)info << ": " << nlopt_get_errmsg(my_opt));
         }
     }
