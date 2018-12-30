@@ -8,9 +8,8 @@ find_package(catkin REQUIRED COMPONENTS
 include(ExternalProject)
 ExternalProject_Add(
   NLopt
-  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/nlopt
-  #GIT_REPOSITORY https://github.com/stevengj/NLopt.git
-  #GIT_TAG "master"
+  GIT_REPOSITORY https://github.com/stevengj/NLopt.git
+  GIT_TAG "master"
   CMAKE_ARGS -DNLOPT_PYTHON:BOOL=OFF -DNLOPT_OCTAVE:BOOL=OFF -DNLOPT_MATLAB:BOOL=OFF -DNLOPT_GUILE:BOOL=OFF -DNLOPT_SWIG:BOOL=OFF -DNLOPT_TESTS:BOOL=OFF -DCMAKE_INSTALL_PREFIX:PATH=${PROJECT_BINARY_DIR}/install -DCMAKE_BUILD_TYPE=Release
 )
 # TODO: copy (!)
