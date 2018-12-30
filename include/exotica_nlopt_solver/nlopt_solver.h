@@ -384,7 +384,7 @@ protected:
     void set_tolerances(nlopt_opt my_opt)
     {
         nlopt_set_maxeval(my_opt, 10000);  //10 * getNumberOfMaxIterations());  // Note: Not strictly true - this is function evaluations and not iterations...
-        nlopt_set_ftol_rel(my_opt, 1e-4);                            // TODO: Make parameters
+        // nlopt_set_ftol_rel(my_opt, 1e-6);                            // TODO: Make parameters
         nlopt_set_xtol_rel(my_opt, 1e-6);  // TODO: Make parameters
         // nlopt_set_ftol_abs(my_opt, 1e-9);
     }
@@ -430,7 +430,7 @@ void NLoptGenericEndPoseSolver<EndPoseProblem, NLoptEndPoseSolverInitializer>::s
         const unsigned int &m_neq = prob_->Inequality.PhiN;
         if (m_neq > 0)
         {
-            const Eigen::VectorXd tol_neq = 1e-8 * Eigen::VectorXd::Ones(m_neq);  // prob_->init_.InequalityFeasibilityTolerance * Eigen::VectorXd::Ones(m_neq);
+            const Eigen::VectorXd tol_neq = 1e-6 * Eigen::VectorXd::Ones(m_neq);  // prob_->init_.InequalityFeasibilityTolerance * Eigen::VectorXd::Ones(m_neq);
             nlopt_result info = nlopt_add_inequality_mconstraint(my_opt, m_neq, &end_pose_problem_inequality_constraint_mfunc<EndPoseProblem>, (void *)data_.get(), tol_neq.data());
             if (info != 1) WARNING("Error while setting inequality constraints: " << (int)info << ": " << nlopt_get_errmsg(my_opt));
         }
@@ -440,7 +440,7 @@ void NLoptGenericEndPoseSolver<EndPoseProblem, NLoptEndPoseSolverInitializer>::s
         const unsigned int &m_eq = prob_->Equality.PhiN;
         if (m_eq > 0)
         {
-            const Eigen::VectorXd tol_eq = prob_->init_.EqualityFeasibilityTolerance * Eigen::VectorXd::Ones(m_eq);
+            const Eigen::VectorXd tol_eq = 1e-6 * Eigen::VectorXd::Ones(m_eq);  // prob_->init_.EqualityFeasibilityTolerance * Eigen::VectorXd::Ones(m_eq);
             nlopt_result info = nlopt_add_equality_mconstraint(my_opt, m_eq, &end_pose_problem_equality_constraint_mfunc<EndPoseProblem>, (void *)data_.get(), tol_eq.data());
             if (info != 1) WARNING("Error while setting equality constraints: " << (int)info << ": " << nlopt_get_errmsg(my_opt));
         }
