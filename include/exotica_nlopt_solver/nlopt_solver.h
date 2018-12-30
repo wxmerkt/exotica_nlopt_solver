@@ -34,6 +34,8 @@
 #define EXOTICA_NLOPT_SOLVER_NLOPT_SOLVER_H_
 
 #include <iostream>
+#include <set>
+#include <unordered_map>
 
 #include <exotica/MotionSolver.h>
 #include <exotica/Problems/BoundedEndPoseProblem.h>
@@ -74,7 +76,7 @@ double end_pose_problem_objective_func(unsigned n, const double *x,
         auto grad_eigen = Eigen::Map<Eigen::VectorXd>(gradient, n);
         grad_eigen = prob->getScalarJacobian();
     }
-    data->objective_function_evaluations++;
+    ++data->objective_function_evaluations;
     return prob->getScalarCost();
 }
 
@@ -93,7 +95,7 @@ void end_pose_problem_inequality_constraint_mfunc(unsigned m, double *result, un
         Eigen::MatrixXd grad_eigen = Eigen::Map<Eigen::MatrixXd>(gradient, m, n);
         grad_eigen = prob->getInequalityJacobian();
     }
-    data->inequality_function_evaluations++;
+    ++data->inequality_function_evaluations;
 }
 
 template <typename Problem>
@@ -111,7 +113,38 @@ void end_pose_problem_equality_constraint_mfunc(unsigned m, double *result, unsi
         Eigen::MatrixXd grad_eigen = Eigen::Map<Eigen::MatrixXd>(gradient, m, n);
         grad_eigen = prob->getEqualityJacobian();
     }
-    data->equality_function_evaluations++;
+    ++data->equality_function_evaluations;
+}
+
+static inline std::string get_result_info(const nlopt_result &info)
+{
+    switch (info)
+    {
+        case nlopt_result::NLOPT_FAILURE:
+            return "generic failure";
+        case nlopt_result::NLOPT_INVALID_ARGS:
+            return "invalid arguments";
+        // case nlopt_result::NLOPT_OUT_OF_MEMROY:
+        //     return "out of memory";
+        case nlopt_result::NLOPT_ROUNDOFF_LIMITED:
+            return "round off limited";
+        case nlopt_result::NLOPT_FORCED_STOP:
+            return "forced stop";
+        case nlopt_result::NLOPT_SUCCESS:
+            return "success";
+        case nlopt_result::NLOPT_STOPVAL_REACHED:
+            return "stop val reached";
+        case nlopt_result::NLOPT_FTOL_REACHED:
+            return "ftol reached";
+        case nlopt_result::NLOPT_XTOL_REACHED:
+            return "xtol reached";
+        case nlopt_result::NLOPT_MAXEVAL_REACHED:
+            return "max eval reached";
+        case nlopt_result::NLOPT_MAXTIME_REACHED:
+            return "max time reached";
+        default:
+            return "unknown?!";
+    }
 }
 
 template <typename Problem, typename ProblemInitializer>
@@ -135,155 +168,109 @@ public:
         // *_RAND algorithms involve some randomization.
         // *_NOSCAL algorithms are *not* scaled to a unit hypercube
         // (i.e. they are sensitive to the units of x)
+        std::unordered_map<std::string, nlopt_algorithm> algorithm_map = {
+            {"NLOPT_GN_DIRECT", NLOPT_GN_DIRECT},
+            {"NLOPT_GN_DIRECT_L", NLOPT_GN_DIRECT_L},
+            {"NLOPT_GN_DIRECT_L_RAND", NLOPT_GN_DIRECT_L_RAND},
+            {"NLOPT_GN_DIRECT_NOSCAL", NLOPT_GN_DIRECT_NOSCAL},
+            {"NLOPT_GN_DIRECT_L_NOSCAL", NLOPT_GN_DIRECT_L_NOSCAL},
+            {"NLOPT_GN_DIRECT_L_RAND_NOSCAL", NLOPT_GN_DIRECT_L_RAND_NOSCAL},
 
-        if (init.Algorithm == "NLOPT_GN_DIRECT")
+            {"NLOPT_GN_ORIG_DIRECT", NLOPT_GN_ORIG_DIRECT},
+            {"NLOPT_GN_ORIG_DIRECT_L", NLOPT_GN_ORIG_DIRECT_L},
+
+            {"NLOPT_GD_STOGO", NLOPT_GD_STOGO},
+            {"NLOPT_GD_STOGO_RAND", NLOPT_GD_STOGO_RAND},
+
+            {"NLOPT_LD_LBFGS_NOCEDAL", NLOPT_LD_LBFGS_NOCEDAL},
+
+            {"NLOPT_LD_LBFGS", NLOPT_LD_LBFGS},
+
+            {"NLOPT_LN_PRAXIS", NLOPT_LN_PRAXIS},
+
+            {"NLOPT_LD_VAR1", NLOPT_LD_VAR1},
+            {"NLOPT_LD_VAR2", NLOPT_LD_VAR2},
+
+            {"NLOPT_LD_TNEWTON", NLOPT_LD_TNEWTON},
+            {"NLOPT_LD_TNEWTON_RESTART", NLOPT_LD_TNEWTON_RESTART},
+            {"NLOPT_LD_TNEWTON_PRECOND", NLOPT_LD_TNEWTON_PRECOND},
+            {"NLOPT_LD_TNEWTON_PRECOND_RESTART", NLOPT_LD_TNEWTON_PRECOND_RESTART},
+
+            {"NLOPT_GN_CRS2_LM", NLOPT_GN_CRS2_LM},
+
+            {"NLOPT_GN_MLSL", NLOPT_GN_MLSL},
+            {"NLOPT_GD_MLSL", NLOPT_GD_MLSL},
+            {"NLOPT_GN_MLSL_LDS", NLOPT_GN_MLSL_LDS},
+            {"NLOPT_GD_MLSL_LDS", NLOPT_GD_MLSL_LDS},
+
+            {"NLOPT_LD_MMA", NLOPT_LD_MMA},
+
+            {"NLOPT_LN_COBYLA", NLOPT_LN_COBYLA},
+
+            {"NLOPT_LN_NEWUOA", NLOPT_LN_NEWUOA},
+            {"NLOPT_LN_NEWUOA_BOUND", NLOPT_LN_NEWUOA_BOUND},
+
+            {"NLOPT_LN_NELDERMEAD", NLOPT_LN_NELDERMEAD},
+            {"NLOPT_LN_SBPLX", NLOPT_LN_SBPLX},
+
+            {"NLOPT_LN_AUGLAG", NLOPT_LN_AUGLAG},
+            {"NLOPT_LD_AUGLAG", NLOPT_LD_AUGLAG},
+            {"NLOPT_LN_AUGLAG_EQ", NLOPT_LN_AUGLAG_EQ},
+            {"NLOPT_LD_AUGLAG_EQ", NLOPT_LD_AUGLAG_EQ},
+
+            {"NLOPT_LN_BOBYQA", NLOPT_LN_BOBYQA},
+
+            {"NLOPT_GN_ISRES", NLOPT_GN_ISRES},
+
+            /* new variants that require local_optimizer to be set, not with older constants for backwards compatibility */
+            {"NLOPT_AUGLAG", NLOPT_AUGLAG},
+            {"NLOPT_AUGLAG_EQ", NLOPT_AUGLAG_EQ},
+            {"NLOPT_G_MLSL", NLOPT_G_MLSL},
+            {"NLOPT_G_MLSL_LDS", NLOPT_G_MLSL_LDS},
+
+            {"NLOPT_LD_SLSQP", NLOPT_LD_SLSQP},
+
+            {"NLOPT_LD_CCSAQ", NLOPT_LD_CCSAQ},
+
+            {"NLOPT_GN_ESCH", NLOPT_GN_ESCH},
+
+            {"NLOPT_GN_AGS", NLOPT_GN_AGS}};
+
+        std::set<std::string> requires_local_optimizer = {"NLOPT_AUGLAG", "NLOPT_AUGLAG_EQ", "NLOPT_G_MLSL", "NLOPT_G_MLSL_LDS"};
+
+        auto it = algorithm_map.find(init.Algorithm);
+        if (it != algorithm_map.end())
         {
-            // From: https://github.com/stevengj/nlopt/blob/1226c1276dacf3687464c65eb165932281493a35/src/algs/direct/README
-            //
-            // The DIRECT algorithm (DIviding RECTangles) is a derivative-free global
-            // optimization algorithm invented by Jones et al.:
+            if (debug_) HIGHLIGHT_NAMED("NLoptGenericEndPoseSolver", "Initialising " << it->first);
+            algorithm_ = it->second;
 
-            // 	D. R. Jones, C. D. Perttunen, and B. E. Stuckmann,
-            // 	"Lipschitzian optimization without the lipschitz constant,"
-            // 	J. Optimization Theory and Applications, vol. 79, p. 157 (1993).
-
-            // This is a deterministic-search algorithm based on systematic division
-            // of the search domain into smaller and smaller hyperrectangles.
-
-            // The implementation is based on the 1998-2001 Fortran version by
-            // J. M. Gablonsky at North Carolina State University, converted to C by
-            // Steven G. Johnson.  The Fortran source was downloaded from:
-
-            // 	http://www4.ncsu.edu/~ctk/SOFTWARE/DIRECTv204.tar.gz
-            algorithm_ = nlopt_algorithm::NLOPT_GN_DIRECT;
+            if (requires_local_optimizer.count(it->first) != 0)
+            {
+                if (init.LocalOptimizer != "")
+                {
+                    auto local_optimizer_it = algorithm_map.find(init.LocalOptimizer);
+                    if (local_optimizer_it != algorithm_map.end())
+                    {
+                        local_optimizer_ = local_optimizer_it->second;
+                        if (debug_) HIGHLIGHT_NAMED("NLoptGenericEndPoseSolver", "Setting local optimizer to " << local_optimizer_it->first);
+                    }
+                    else
+                    {
+                        throw_pretty("Selected local optimizer '" << init.LocalOptimizer << "' does not exist.");
+                    }
+                }
+                else
+                {
+                    // Default local optimizer
+                    local_optimizer_ = nlopt_algorithm::NLOPT_LD_MMA;  //NLOPT_LD_TNEWTON;
+                }
+            }
+            else
+            {
+                // Warn if a local optimizer is specified but not required.
+                if (init.LocalOptimizer != "") WARNING("The selected algorithm does not require a local optimizer, ignoring.");
+            }
         }
-        else if (init.Algorithm == "NLOPT_GN_DIRECT_L")
-        {
-            // From: https://github.com/stevengj/nlopt/blob/1226c1276dacf3687464c65eb165932281493a35/src/algs/direct/README
-            //
-            // Gablonsky et al implemented a modified version of the original DIRECT
-            // algorithm, as described in:
-
-            // 	J. M. Gablonsky and C. T. Kelley, "A locally-biased form
-            // 	of the DIRECT algorithm," J. Global Optimization 21 (1),
-            // 	p. 27-37 (2001).
-
-            // Both the original Jones algorithm (NLOPT_GN_DIRECT) and the
-            // Gablonsky modified version (NLOPT_GN_DIRECT_L) are implemented
-            // and available from the NLopt interface.  The Gablonsky version
-            // makes the algorithm "more biased towards local search" so that it
-            // is more efficient for functions without too many local minima.
-
-            // Also, Gablonsky et al. extended the algorithm to handle "hidden
-            // constraints", i.e. arbitrary nonlinear constraints.  In NLopt, a
-            // hidden constraint is represented by returning NaN (or Inf, or
-            // HUGE_VAL) from the objective function at any points violating the
-            // constraint.
-            algorithm_ = nlopt_algorithm::NLOPT_GN_DIRECT_L;
-        }
-        // NLOPT_GN_DIRECT_L_RAND,
-        // NLOPT_GN_DIRECT_NOSCAL,
-        // NLOPT_GN_DIRECT_L_NOSCAL,
-        // NLOPT_GN_DIRECT_L_RAND_NOSCAL,
-
-        // NLOPT_GN_ORIG_DIRECT,
-        // NLOPT_GN_ORIG_DIRECT_L,
-
-        // NLOPT_GD_STOGO,
-        else if (init.Algorithm == "NLOPT_GD_STOGO")
-        {
-            // From: https://github.com/stevengj/nlopt/blob/master/src/algs/stogo/README
-            //
-            // StoGO uses a gradient-based direct-search branch-and-bound algorithm,
-            // described in:
-
-            // S. Gudmundsson, "Parallel Global Optimization," M.Sc. Thesis, IMM,
-            // 	Technical University of Denmark, 1998.
-
-            // K. Madsen, S. Zertchaninov, and A. Zilinskas, "Global Optimization
-            // 	using Branch-and-Bound," Submitted to the Journal of Global
-            // 	Optimization, 1998.
-            // 	[ never published, but preprint is included as paper.pdf ]
-
-            // S. Zertchaninov and K. Madsen, "A C++ Programme for Global Optimization,"
-            // 	IMM-REP-1998-04, Department of Mathematical Modelling,
-            // 	Technical University of Denmark, DK-2800 Lyngby, Denmark, 1998.
-            // 	[ included as techreport.pdf ]
-            algorithm_ = nlopt_algorithm::NLOPT_GD_STOGO;
-        }
-        // NLOPT_GD_STOGO_RAND,
-
-        // NLOPT_LD_LBFGS_NOCEDAL,
-
-        // NLOPT_LD_LBFGS,
-
-        // NLOPT_LN_PRAXIS,
-
-        // NLOPT_LD_VAR1,
-        // NLOPT_LD_VAR2,
-
-        // NLOPT_LD_TNEWTON,
-        else if (init.Algorithm == "NLOPT_LD_TNEWTON")
-        {
-            algorithm_ = nlopt_algorithm::NLOPT_LD_TNEWTON;
-        }
-        // NLOPT_LD_TNEWTON_RESTART,
-        // NLOPT_LD_TNEWTON_PRECOND,
-        // NLOPT_LD_TNEWTON_PRECOND_RESTART,
-
-        // NLOPT_GN_CRS2_LM,
-
-        // NLOPT_GN_MLSL,
-        // NLOPT_GD_MLSL,
-        // NLOPT_GN_MLSL_LDS,
-        // NLOPT_GD_MLSL_LDS,
-
-        // NLOPT_LD_MMA,
-
-        // NLOPT_LN_COBYLA,
-
-        // NLOPT_LN_NEWUOA,
-        // NLOPT_LN_NEWUOA_BOUND,
-
-        // NLOPT_LN_NELDERMEAD,
-        // NLOPT_LN_SBPLX,
-
-        // NLOPT_LN_AUGLAG,
-        // NLOPT_LD_AUGLAG,
-        // NLOPT_LN_AUGLAG_EQ,
-        // NLOPT_LD_AUGLAG_EQ,
-        else if (init.Algorithm == "NLOPT_LD_AUGLAG")
-        {
-            algorithm_ = nlopt_algorithm::NLOPT_LD_AUGLAG;
-            // local_optimizer_ = nlopt_algorithm::NLOPT_LD_MMA; //NLOPT_LD_TNEWTON;
-        }
-
-        // NLOPT_LN_BOBYQA,
-
-        // NLOPT_GN_ISRES,
-
-        // // new variants that require local_optimizer to be set,
-        //     // not with older constants for backwards compatibility
-        //     NLOPT_AUGLAG,
-        // NLOPT_AUGLAG_EQ,
-        // NLOPT_G_MLSL,
-        // NLOPT_G_MLSL_LDS,
-        else if (init.Algorithm == "NLOPT_AUGLAG")
-        {
-            algorithm_ = nlopt_algorithm::NLOPT_AUGLAG;
-            local_optimizer_ = nlopt_algorithm::NLOPT_LD_MMA;  //NLOPT_LD_TNEWTON;
-        }
-
-        // NLOPT_LD_SLSQP,
-        else if (init.Algorithm == "NLOPT_LD_SLSQP")
-        {
-            algorithm_ = nlopt_algorithm::NLOPT_LD_SLSQP;
-        }
-
-        // NLOPT_LD_CCSAQ,
-
-        // NLOPT_GN_ESCH,
-
         else
         {
             throw_pretty("Selected algorithm " << init.Algorithm << " is not supported.");
@@ -343,9 +330,9 @@ public:
         if (local_optimizer_ != nlopt_algorithm::NLOPT_NUM_ALGORITHMS)
         {
             local_opt = nlopt_create(local_optimizer_, prob_->N);
-            nlopt_result info = nlopt_set_local_optimizer(opt, local_opt);
             set_bounds(local_opt);
             set_tolerances(local_opt);
+            nlopt_result info = nlopt_set_local_optimizer(opt, local_opt);
             if (info != 1) WARNING("Error while setting local optimizer: " << (int)info << ": " << nlopt_get_errmsg(opt));
         }
 
@@ -363,7 +350,7 @@ public:
         double final_cost_value;
         nlopt_result info = nlopt_optimize(opt, q0.data(), &final_cost_value);
         if (info < 0)
-            WARNING("Optimization did not exit cleanly! " << (int)info);
+            WARNING("Optimization did not exit cleanly! " << get_result_info(info));
 
         solution.row(0) = q0;
         planning_time_ = timer.getDuration();
@@ -371,7 +358,7 @@ public:
         // Show statistics if "verbose" is set as true
         if (debug_)
         {
-            HIGHLIGHT_NAMED("NLoptGenericEndPoseSolver", "Info: " << (int)info);
+            HIGHLIGHT_NAMED("NLoptGenericEndPoseSolver", "Info: " << get_result_info(info));
             std::cout << "------ nlopt ------" << std::endl;
             std::cout << "Dimensions     : " << prob_->N << std::endl;
             std::cout << "  f(obj/eq/neq): " << data_->objective_function_evaluations << " / " << data_->equality_function_evaluations << " / " << data_->inequality_function_evaluations << std::endl;
@@ -396,9 +383,9 @@ protected:
     virtual void set_constraints(nlopt_opt my_opt) {}  // To be reimplemented in constrained problems
     void set_tolerances(nlopt_opt my_opt)
     {
-        nlopt_set_maxeval(my_opt, 10000); //10 * getNumberOfMaxIterations());  // Note: Not strictly true - this is function evaluations and not iterations...
-        // nlopt_set_ftol_rel(my_opt, 1e-6);                            // TODO: Make parameters
-        // nlopt_set_xtol_rel(my_opt, 1e-6);                            // TODO: Make parameters
+        nlopt_set_maxeval(my_opt, 10000);  //10 * getNumberOfMaxIterations());  // Note: Not strictly true - this is function evaluations and not iterations...
+        nlopt_set_ftol_rel(my_opt, 1e-4);                            // TODO: Make parameters
+        nlopt_set_xtol_rel(my_opt, 1e-6);  // TODO: Make parameters
         // nlopt_set_ftol_abs(my_opt, 1e-9);
     }
 };
@@ -443,7 +430,7 @@ void NLoptGenericEndPoseSolver<EndPoseProblem, NLoptEndPoseSolverInitializer>::s
         const unsigned int &m_neq = prob_->Inequality.PhiN;
         if (m_neq > 0)
         {
-            const Eigen::VectorXd tol_neq = prob_->init_.InequalityFeasibilityTolerance * Eigen::VectorXd::Ones(m_neq);
+            const Eigen::VectorXd tol_neq = 1e-8 * Eigen::VectorXd::Ones(m_neq);  // prob_->init_.InequalityFeasibilityTolerance * Eigen::VectorXd::Ones(m_neq);
             nlopt_result info = nlopt_add_inequality_mconstraint(my_opt, m_neq, &end_pose_problem_inequality_constraint_mfunc<EndPoseProblem>, (void *)data_.get(), tol_neq.data());
             if (info != 1) WARNING("Error while setting inequality constraints: " << (int)info << ": " << nlopt_get_errmsg(my_opt));
         }
