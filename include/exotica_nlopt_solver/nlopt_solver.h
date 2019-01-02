@@ -37,10 +37,10 @@
 #include <set>
 #include <unordered_map>
 
-#include <exotica/MotionSolver.h>
-#include <exotica/Problems/BoundedEndPoseProblem.h>
-#include <exotica/Problems/EndPoseProblem.h>
-#include <exotica/Problems/UnconstrainedEndPoseProblem.h>
+#include <exotica_core/motion_solver.h>
+#include <exotica_core/problems/bounded_end_pose_problem.h>
+#include <exotica_core/problems/end_pose_problem.h>
+#include <exotica_core/problems/unconstrained_end_pose_problem.h>
 
 #include <exotica_nlopt_solver/NLoptBoundedEndPoseSolverInitializer.h>
 #include <exotica_nlopt_solver/NLoptEndPoseSolverInitializer.h>

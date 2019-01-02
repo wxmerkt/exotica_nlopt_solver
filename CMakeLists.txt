@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(exotica_nlopt_solver)
 
 find_package(catkin REQUIRED COMPONENTS
-  exotica
+  exotica_core
 )
 
 include(ExternalProject)
@@ -25,7 +25,7 @@ GenInitializers()
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES exotica_nlopt_solver nlopt
-  CATKIN_DEPENDS exotica
+  CATKIN_DEPENDS exotica_core
 )
 
 include_directories(
