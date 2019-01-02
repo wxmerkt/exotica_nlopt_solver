@@ -16,6 +16,6 @@
   <exec_depend>exotica_core</exec_depend>
 
   <export>
-    <exotica plugin="${prefix}/exotica_plugins.xml" />
+    <exotica_core plugin="${prefix}/exotica_plugins.xml" />
   </export>
 </package>
