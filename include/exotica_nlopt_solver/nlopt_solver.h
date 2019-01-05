@@ -301,8 +301,8 @@ public:
             ThrowNamed("Wrong size q0 size=" << q0.rows()
                                              << ", required size=" << prob_->N);
         solution.resize(1, prob_->N);
-        // prob_->resetCostEvolution(parameters.iterations + 1);
-        // prob_->setCostEvolution(0, f(q0));
+        // prob_->ResetCostEvolution(parameters.iterations + 1);
+        // prob_->SetCostEvolution(0, f(q0));
 
         // Create wrapper
         data_.reset(new ProblemWrapperData<Problem>(prob_.get()));
