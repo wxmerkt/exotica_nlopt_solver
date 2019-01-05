@@ -42,9 +42,9 @@
 #include <exotica_core/problems/end_pose_problem.h>
 #include <exotica_core/problems/unconstrained_end_pose_problem.h>
 
-#include <exotica_nlopt_solver/NLoptBoundedEndPoseSolverInitializer.h>
-#include <exotica_nlopt_solver/NLoptEndPoseSolverInitializer.h>
-#include <exotica_nlopt_solver/NLoptUnconstrainedEndPoseSolverInitializer.h>
+#include <exotica_nlopt_solver/NLoptBoundedEndPoseSolver_initializer.h>
+#include <exotica_nlopt_solver/NLoptEndPoseSolver_initializer.h>
+#include <exotica_nlopt_solver/NLoptUnconstrainedEndPoseSolver_initializer.h>
 
 // Note: We are using the C and not the C++ API as the latter requires copy
 // operations for the evaluation functions (in order to use std::vector)
@@ -74,10 +74,10 @@ double end_pose_problem_objective_func(unsigned n, const double *x,
     if (gradient != nullptr)
     {
         auto grad_eigen = Eigen::Map<Eigen::VectorXd>(gradient, n);
-        grad_eigen = prob->getScalarJacobian();
+        grad_eigen = prob->GetScalarJacobian();
     }
     ++data->objective_function_evaluations;
-    return prob->getScalarCost();
+    return prob->GetScalarCost();
 }
 
 template <typename Problem>
@@ -89,11 +89,11 @@ void end_pose_problem_inequality_constraint_mfunc(unsigned m, double *result, un
     Eigen::VectorXd neq = Eigen::Map<const Eigen::VectorXd>(result, m);
     prob->Update(q);
 
-    neq = prob->getInequality();
+    neq = prob->GetInequality();
     if (gradient != nullptr)
     {
         Eigen::MatrixXd grad_eigen = Eigen::Map<Eigen::MatrixXd>(gradient, m, n);
-        grad_eigen = prob->getInequalityJacobian();
+        grad_eigen = prob->GetInequalityJacobian();
     }
     ++data->inequality_function_evaluations;
 }
@@ -107,11 +107,11 @@ void end_pose_problem_equality_constraint_mfunc(unsigned m, double *result, unsi
     Eigen::VectorXd neq = Eigen::Map<const Eigen::VectorXd>(result, m);
     prob->Update(q);
 
-    neq = prob->getEquality();
+    neq = prob->GetEquality();
     if (gradient != nullptr)
     {
         Eigen::MatrixXd grad_eigen = Eigen::Map<Eigen::MatrixXd>(gradient, m, n);
-        grad_eigen = prob->getEqualityJacobian();
+        grad_eigen = prob->GetEqualityJacobian();
     }
     ++data->equality_function_evaluations;
 }
@@ -256,7 +256,7 @@ public:
                     }
                     else
                     {
-                        throw_pretty("Selected local optimizer '" << init.LocalOptimizer << "' does not exist.");
+                        ThrowPretty("Selected local optimizer '" << init.LocalOptimizer << "' does not exist.");
                     }
                 }
                 else
@@ -273,18 +273,18 @@ public:
         }
         else
         {
-            throw_pretty("Selected algorithm " << init.Algorithm << " is not supported.");
+            ThrowPretty("Selected algorithm " << init.Algorithm << " is not supported.");
         }
     }
 
-    void specifyProblem(PlanningProblem_ptr pointer) override
+    void SpecifyProblem(PlanningProblemPtr pointer) override
     {
         if (pointer->type().find("EndPoseProblem") == std::string::npos)
         {
-            throw_named("NLoptGenericEndPoseSolver can't solve problem of type '"
-                        << pointer->type() << "'!");
+            ThrowNamed("NLoptGenericEndPoseSolver can't solve problem of type '"
+                       << pointer->type() << "'!");
         }
-        MotionSolver::specifyProblem(pointer);
+        MotionSolver::SpecifyProblem(pointer);
         prob_ = std::static_pointer_cast<Problem>(pointer);
     }
 
@@ -292,14 +292,14 @@ public:
     {
         Timer timer;
         planning_time_ = -1;
-        prob_->preupdate();
+        prob_->PreUpdate();
 
         if (!prob_)
-            throw_named("Solver has not been initialized!");
-        Eigen::VectorXd q0 = prob_->applyStartState();
+            ThrowNamed("Solver has not been initialized!");
+        Eigen::VectorXd q0 = prob_->ApplyStartState();
         if (prob_->N != q0.rows())
-            throw_named("Wrong size q0 size=" << q0.rows()
-                                              << ", required size=" << prob_->N);
+            ThrowNamed("Wrong size q0 size=" << q0.rows()
+                                             << ", required size=" << prob_->N);
         solution.resize(1, prob_->N);
         // prob_->resetCostEvolution(parameters.iterations + 1);
         // prob_->setCostEvolution(0, f(q0));
@@ -353,7 +353,7 @@ public:
             WARNING("Optimization did not exit cleanly! " << get_result_info(info));
 
         solution.row(0) = q0;
-        planning_time_ = timer.getDuration();
+        planning_time_ = timer.GetDuration();
 
         // Show statistics if "verbose" is set as true
         if (debug_)
@@ -383,7 +383,7 @@ protected:
     virtual void set_constraints(nlopt_opt my_opt) {}  // To be reimplemented in constrained problems
     void set_tolerances(nlopt_opt my_opt)
     {
-        nlopt_set_maxeval(my_opt, 10000);  //10 * getNumberOfMaxIterations());  // Note: Not strictly true - this is function evaluations and not iterations...
+        nlopt_set_maxeval(my_opt, 10000);  //10 * GetNumberOfMaxIterations());  // Note: Not strictly true - this is function evaluations and not iterations...
         // nlopt_set_ftol_rel(my_opt, 1e-6);                            // TODO: Make parameters
         nlopt_set_xtol_rel(my_opt, 1e-6);  // TODO: Make parameters
         // nlopt_set_ftol_abs(my_opt, 1e-9);
@@ -395,8 +395,8 @@ protected:
 template <>
 void NLoptGenericEndPoseSolver<BoundedEndPoseProblem, NLoptBoundedEndPoseSolverInitializer>::set_bounds(nlopt_opt my_opt)
 {
-    const Eigen::VectorXd lower_bounds = prob_->getBounds().col(0);
-    const Eigen::VectorXd upper_bounds = prob_->getBounds().col(1);
+    const Eigen::VectorXd lower_bounds = prob_->GetBounds().col(0);
+    const Eigen::VectorXd upper_bounds = prob_->GetBounds().col(1);
     {
         nlopt_result info = nlopt_set_lower_bounds(my_opt, lower_bounds.data());
         if (info != 1) WARNING("Error while setting lower bounds: " << (int)info << ": " << nlopt_get_errmsg(my_opt));
@@ -410,8 +410,8 @@ void NLoptGenericEndPoseSolver<BoundedEndPoseProblem, NLoptBoundedEndPoseSolverI
 template <>
 void NLoptGenericEndPoseSolver<EndPoseProblem, NLoptEndPoseSolverInitializer>::set_bounds(nlopt_opt my_opt)
 {
-    const Eigen::VectorXd lower_bounds = prob_->getBounds().col(0);
-    const Eigen::VectorXd upper_bounds = prob_->getBounds().col(1);
+    const Eigen::VectorXd lower_bounds = prob_->GetBounds().col(0);
+    const Eigen::VectorXd upper_bounds = prob_->GetBounds().col(1);
     {
         nlopt_result info = nlopt_set_lower_bounds(my_opt, lower_bounds.data());
         if (info != 1) WARNING("Error while setting lower bounds: " << (int)info << ": " << nlopt_get_errmsg(my_opt));
@@ -426,8 +426,8 @@ template <>
 void NLoptGenericEndPoseSolver<EndPoseProblem, NLoptEndPoseSolverInitializer>::set_constraints(nlopt_opt my_opt)
 {
     {
-        if (!my_opt) throw_pretty("opt is dead");
-        const unsigned int &m_neq = prob_->Inequality.PhiN;
+        if (!my_opt) ThrowPretty("opt is dead");
+        const unsigned int &m_neq = prob_->inequality.length_Phi;
         if (m_neq > 0)
         {
             const Eigen::VectorXd tol_neq = 1e-6 * Eigen::VectorXd::Ones(m_neq);  // prob_->init_.InequalityFeasibilityTolerance * Eigen::VectorXd::Ones(m_neq);
@@ -437,7 +437,7 @@ void NLoptGenericEndPoseSolver<EndPoseProblem, NLoptEndPoseSolverInitializer>::s
     }
 
     {
-        const unsigned int &m_eq = prob_->Equality.PhiN;
+        const unsigned int &m_eq = prob_->equality.length_Phi;
         if (m_eq > 0)
         {
             const Eigen::VectorXd tol_eq = 1e-6 * Eigen::VectorXd::Ones(m_eq);  // prob_->init_.EqualityFeasibilityTolerance * Eigen::VectorXd::Ones(m_eq);

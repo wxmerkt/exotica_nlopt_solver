@@ -1,3 +1,5 @@
-extend <exotica_core/MotionSolver>
+class NLoptMotionSolver
+
+extend <exotica_core/motion_solver>
 Optional std::string Algorithm = "NLOPT_LD_TNEWTON";
 Optional std::string LocalOptimizer = "";  // Only needed for some algorithms, check the manual.

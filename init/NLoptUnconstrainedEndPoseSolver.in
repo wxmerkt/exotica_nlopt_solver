@@ -1,1 +1,3 @@
+class NLoptUnconstrainedEndPoseSolver
+
 extend <exotica_nlopt_solver/NLoptMotionSolver>

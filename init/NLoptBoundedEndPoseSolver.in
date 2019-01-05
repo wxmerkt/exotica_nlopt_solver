@@ -1,1 +1,3 @@
+class NLoptBoundedEndPoseSolver
+
 extend <exotica_nlopt_solver/NLoptMotionSolver>
