@@ -154,8 +154,10 @@ public:
     NLoptGenericEndPoseSolver() = default;
     virtual ~NLoptGenericEndPoseSolver() = default;
 
-    void Instantiate(ProblemInitializer &init) override
+    void Instantiate(const ProblemInitializer &init) override
     {
+        this->parameters_ = init;
+
         HIGHLIGHT_NAMED("NLoptGenericEndPoseSolver", "Instantiating");
 
         // TODO: Select algorithm
@@ -301,7 +303,7 @@ public:
             ThrowNamed("Wrong size q0 size=" << q0.rows()
                                              << ", required size=" << prob_->N);
         solution.resize(1, prob_->N);
-        // prob_->ResetCostEvolution(parameters.iterations + 1);
+        // prob_->ResetCostEvolution(parameters_.iterations + 1);
         // prob_->SetCostEvolution(0, f(q0));
 
         // Create wrapper
