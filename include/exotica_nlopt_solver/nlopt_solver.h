@@ -158,8 +158,6 @@ public:
     {
         this->parameters_ = init;
 
-        HIGHLIGHT_NAMED("NLoptGenericEndPoseSolver", "Instantiating");
-
         // TODO: Select algorithm
         // From https://github.com/stevengj/nlopt/blob/master/src/api/nlopt.h#L72
         //
