@@ -73,7 +73,7 @@ double end_pose_problem_objective_func(unsigned n, const double *x,
     prob->Update(q);
     if (gradient != nullptr)
     {
-        auto grad_eigen = Eigen::Map<Eigen::VectorXd>(gradient, n);
+        auto grad_eigen = Eigen::Map<Eigen::RowVectorXd>(gradient, n);
         grad_eigen = prob->GetScalarJacobian();
     }
     ++data->objective_function_evaluations;
