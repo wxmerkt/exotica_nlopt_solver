@@ -1,0 +1,40 @@
+<?xml version="1.0" ?>
+<IKSolverDemoConfig>
+    <NLoptBoundedEndPoseSolver Name="MySolver">
+        <Debug>1</Debug>
+        <Algorithm>NLOPT_LD_CCSAQ</Algorithm>
+        <BoundVelocities>1</BoundVelocities>
+        <dt>0.01</dt>
+    </NLoptBoundedEndPoseSolver>
+
+    <BoundedEndPoseProblem Name="VelocityConstrainedInteractiveIK">
+        <PlanningScene>
+            <Scene>
+                <JointGroup>arm</JointGroup>
+                <URDF>{exotica_examples}/resources/robots/lwr_simplified.urdf</URDF>
+                <SRDF>{exotica_examples}/resources/robots/lwr_simplified.srdf</SRDF>
+                <LoadScene>{exotica_examples}/resources/scenes/example_box.scene</LoadScene>
+                <Links>
+                    <Link Name="Target" />
+                </Links>
+            </Scene>
+        </PlanningScene>
+
+        <Maps>
+            <EffFrame Name="Position">
+                <EndEffector>
+                    <Frame Link="lwr_arm_6_link" LinkOffset="0 0 0.2 0.7071 0  0.7071 0" Base="Target"/>
+                </EndEffector>
+            </EffFrame>
+        </Maps>
+
+        <Cost>
+            <Task Task="Position" Rho="1e3"/>
+        </Cost>
+
+        <LowerBound>-1 -1 -1 -1 -1 -1 -1</LowerBound>
+        <UpperBound>1 1 1 1 1 1 1</UpperBound>
+        <StartState>0 0 0 0 0 0 0</StartState>
+        <W> 7 6 5 4 3 2 1 </W>
+    </BoundedEndPoseProblem>
+</IKSolverDemoConfig>

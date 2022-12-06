@@ -56,11 +56,18 @@ namespace exotica
 template <typename Problem>
 struct ProblemWrapperData
 {
-    ProblemWrapperData(Problem *problem_in) : problem(problem_in) {}
+    ProblemWrapperData(Problem *problem_in) : problem(problem_in), q(Eigen::VectorXd::Zero(problem->N)) {}
     int objective_function_evaluations = 0;
     int inequality_function_evaluations = 0;
     int equality_function_evaluations = 0;
     Problem *problem = nullptr;
+    Eigen::VectorXd q;
+
+    void reset() {
+        objective_function_evaluations = 0;
+        inequality_function_evaluations = 0;
+        equality_function_evaluations = 0;
+    }
 };
 
 template <typename Problem>
@@ -288,6 +295,9 @@ public:
         }
         MotionSolver::SpecifyProblem(pointer);
         prob_ = std::static_pointer_cast<Problem>(pointer);
+
+        // Create wrapper
+        data_.reset(new ProblemWrapperData<Problem>(prob_.get()));
     }
 
     void Solve(Eigen::MatrixXd &solution) override
@@ -298,6 +308,11 @@ public:
 
         if (!prob_)
             ThrowNamed("Solver has not been initialized!");
+
+        // Reset problem wrapper data
+        data_->reset();
+
+        // Get start state and set up solution
         Eigen::VectorXd q0 = prob_->ApplyStartState();
         if (prob_->N != q0.rows())
             ThrowNamed("Wrong size q0 size=" << q0.rows()
@@ -306,8 +321,8 @@ public:
         // prob_->ResetCostEvolution(parameters_.iterations + 1);
         // prob_->SetCostEvolution(0, f(q0));
 
-        // Create wrapper
-        data_.reset(new ProblemWrapperData<Problem>(prob_.get()));
+        // TODO: tmp hack
+        data_->q = q0;
 
         // Create optimisation solver
         nlopt_opt opt = nlopt_create(algorithm_, prob_->N);
@@ -397,8 +412,21 @@ protected:
 template <>
 void NLoptGenericEndPoseSolver<BoundedEndPoseProblem, NLoptBoundedEndPoseSolverInitializer>::set_bounds(nlopt_opt my_opt)
 {
-    const Eigen::VectorXd lower_bounds = prob_->GetBounds().col(0);
-    const Eigen::VectorXd upper_bounds = prob_->GetBounds().col(1);
+    // Creating a copy since we are modifying it below - TODO: Do not create copies
+    Eigen::VectorXd lower_bounds = prob_->GetBounds().col(0);
+    Eigen::VectorXd upper_bounds = prob_->GetBounds().col(1);
+
+    // Check if we need to modify the bounds based on velocity limits
+    if (this->parameters_.BoundVelocities)
+    {
+        const Eigen::VectorXd& jvl = prob_->GetScene()->GetKinematicTree().GetVelocityLimits();
+        const Eigen::VectorXd incremental_motion = this->parameters_.dt * jvl;
+
+        // Update the bounds based on the allowed incremental motion given the velocity limits and the timestep
+        lower_bounds = lower_bounds.cwiseMax(data_->q - incremental_motion);
+        upper_bounds = upper_bounds.cwiseMin(data_->q + incremental_motion);
+    }
+
     {
         nlopt_result info = nlopt_set_lower_bounds(my_opt, lower_bounds.data());
         if (info != 1) WARNING("Error while setting lower bounds: " << (int)info << ": " << nlopt_get_errmsg(my_opt));

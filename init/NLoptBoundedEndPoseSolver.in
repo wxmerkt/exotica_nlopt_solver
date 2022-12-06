@@ -1,3 +1,6 @@
 class NLoptBoundedEndPoseSolver
 
 extend <exotica_nlopt_solver/NLoptMotionSolver>
+
+Optional bool BoundVelocities = false;
+Optional double dt = 0.01;
