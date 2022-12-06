@@ -1,6 +1,10 @@
 <?xml version="1.0" ?>
 <IKSolverDemoConfig>
-    <NLoptEndPoseSolver Name="MySolver" Algorithm="NLOPT_LD_SLSQP" Debug="1" />
+    <!-- Equality and inequality constraints -->
+    <!-- <NLoptEndPoseSolver Name="MySolver" Algorithm="NLOPT_LD_SLSQP" Debug="1" /> -->
+
+    <!-- Inequality but not equality constraints -->
+    <NLoptEndPoseSolver Name="MySolver" Algorithm="NLOPT_LD_MMA" Debug="1" />
 
     <EndPoseProblem Name="FigureEightTracking">
         <PlanningScene>
@@ -46,9 +50,8 @@
             <Task Task="LimitEff"/>
         </Inequality>
 
-        <UseBounds>0</UseBounds>
+        <UseBounds>1</UseBounds>
         <StartState>0 0 0 0 0 0 0</StartState>
-        <NominalState>0 0 0 0 0 0 0</NominalState>
         <W> 7 6 5 4 3 2 1 </W>
     </EndPoseProblem>
 </IKSolverDemoConfig>

@@ -11,7 +11,7 @@ solver = exo.Setup.load_solver(
     '{exotica_nlopt_solver}/resources/nlopt_ik_constrained.xml')
 
 
-dt = 0.002
+dt = 0.01
 t = 0.0
 q = array([0.0]*7)
 print('Publishing IK')
