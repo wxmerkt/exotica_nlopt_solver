@@ -381,8 +381,8 @@ protected:
     nlopt_algorithm algorithm_ = nlopt_algorithm::NLOPT_NUM_ALGORITHMS;        ///< Selected optimization algorithm.
     nlopt_algorithm local_optimizer_ = nlopt_algorithm::NLOPT_NUM_ALGORITHMS;  ///< Local optimization, if required by the selected algorithm.
 
-    virtual void set_bounds(nlopt_opt my_opt) {}       // To be reimplemented in bounded problems
-    virtual void set_constraints(nlopt_opt my_opt) {}  // To be reimplemented in constrained problems
+    virtual void set_bounds(nlopt_opt /*my_opt*/) {}       // To be reimplemented in bounded problems
+    virtual void set_constraints(nlopt_opt /*my_opt*/) {}  // To be reimplemented in constrained problems
     void set_tolerances(nlopt_opt my_opt)
     {
         nlopt_set_maxeval(my_opt, this->parameters_.MaxFunctionEvaluations);
