@@ -70,11 +70,11 @@ double end_pose_problem_objective_func(unsigned n, const double *x,
 {
     ProblemWrapperData<Problem> *data = reinterpret_cast<ProblemWrapperData<Problem> *>(func_data);
     Problem *prob = reinterpret_cast<Problem *>(data->problem);
-    Eigen::VectorXd q = Eigen::Map<const Eigen::VectorXd>(x, n);
+    Eigen::Map<const Eigen::VectorXd> q = Eigen::Map<const Eigen::VectorXd>(x, n);
     prob->Update(q);
     if (gradient != nullptr)
     {
-        auto grad_eigen = Eigen::Map<Eigen::RowVectorXd>(gradient, n);
+        Eigen::Map<Eigen::RowVectorXd> grad_eigen = Eigen::Map<Eigen::RowVectorXd>(gradient, n);
         grad_eigen = prob->GetScalarJacobian();
     }
     ++data->objective_function_evaluations;
@@ -86,14 +86,14 @@ void end_pose_problem_inequality_constraint_mfunc(unsigned m, double *result, un
 {
     ProblemWrapperData<Problem> *data = reinterpret_cast<ProblemWrapperData<Problem> *>(func_data);
     Problem *prob = reinterpret_cast<Problem *>(data->problem);
-    Eigen::VectorXd q = Eigen::Map<const Eigen::VectorXd>(x, n);
-    Eigen::VectorXd neq = Eigen::Map<const Eigen::VectorXd>(result, m);
+    Eigen::Map<const Eigen::VectorXd> q = Eigen::Map<const Eigen::VectorXd>(x, n);
+    Eigen::Map<Eigen::VectorXd> neq = Eigen::Map<Eigen::VectorXd>(result, m);
     prob->Update(q);
 
     neq = prob->GetInequality();
     if (gradient != nullptr)
     {
-        Eigen::MatrixXd grad_eigen = Eigen::Map<Eigen::MatrixXd>(gradient, m, n);
+        Eigen::Map<Eigen::MatrixXd> grad_eigen = Eigen::Map<Eigen::MatrixXd>(gradient, m, n);
         grad_eigen = prob->GetInequalityJacobian();
     }
     ++data->inequality_function_evaluations;
@@ -104,14 +104,14 @@ void end_pose_problem_equality_constraint_mfunc(unsigned m, double *result, unsi
 {
     ProblemWrapperData<Problem> *data = reinterpret_cast<ProblemWrapperData<Problem> *>(func_data);
     Problem *prob = reinterpret_cast<Problem *>(data->problem);
-    Eigen::VectorXd q = Eigen::Map<const Eigen::VectorXd>(x, n);
-    Eigen::VectorXd neq = Eigen::Map<const Eigen::VectorXd>(result, m);
+    Eigen::Map<const Eigen::VectorXd> q = Eigen::Map<const Eigen::VectorXd>(x, n);
+    Eigen::Map<Eigen::VectorXd> eq = Eigen::Map<Eigen::VectorXd>(result, m);
     prob->Update(q);
 
-    neq = prob->GetEquality();
+    eq = prob->GetEquality();
     if (gradient != nullptr)
     {
-        Eigen::MatrixXd grad_eigen = Eigen::Map<Eigen::MatrixXd>(gradient, m, n);
+        Eigen::Map<Eigen::MatrixXd> grad_eigen = Eigen::Map<Eigen::MatrixXd>(gradient, m, n);
         grad_eigen = prob->GetEqualityJacobian();
     }
     ++data->equality_function_evaluations;
