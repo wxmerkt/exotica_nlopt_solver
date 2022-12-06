@@ -6,8 +6,8 @@
 
   <maintainer email="opensource@wolfgangmerkt.com">Wolfgang Merkt</maintainer>
 
-  <!--   BSD, MIT, Boost Software License, GPLv2, GPLv3, LGPLv2.1, LGPLv3 -->
-  <license>TODO</license>
+  <!-- Note, some algorithms in NLopt are licensed under LGPL. We are only dynamically linking against NLopt in this package. -->
+  <license>BSD</license>
 
   <url type="repository">https://github.com/wxmerkt/exotica_nlopt_solver</url>
 
