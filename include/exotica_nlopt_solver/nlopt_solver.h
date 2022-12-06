@@ -169,7 +169,7 @@ public:
         // *_RAND algorithms involve some randomization.
         // *_NOSCAL algorithms are *not* scaled to a unit hypercube
         // (i.e. they are sensitive to the units of x)
-        std::unordered_map<std::string, nlopt_algorithm> algorithm_map = {
+        const std::unordered_map<std::string, nlopt_algorithm> algorithm_map = {
             {"NLOPT_GN_DIRECT", NLOPT_GN_DIRECT},
             {"NLOPT_GN_DIRECT_L", NLOPT_GN_DIRECT_L},
             {"NLOPT_GN_DIRECT_L_RAND", NLOPT_GN_DIRECT_L_RAND},
@@ -237,7 +237,7 @@ public:
 
             {"NLOPT_GN_AGS", NLOPT_GN_AGS}};
 
-        std::set<std::string> requires_local_optimizer = {"NLOPT_AUGLAG", "NLOPT_AUGLAG_EQ", "NLOPT_G_MLSL", "NLOPT_G_MLSL_LDS"};
+        const std::set<std::string> requires_local_optimizer = {"NLOPT_AUGLAG", "NLOPT_AUGLAG_EQ", "NLOPT_G_MLSL", "NLOPT_G_MLSL_LDS"};
 
         auto it = algorithm_map.find(init.Algorithm);
         if (it != algorithm_map.end())
@@ -263,6 +263,7 @@ public:
                 else
                 {
                     // Default local optimizer
+                    if (debug_) HIGHLIGHT_NAMED("NLoptGenericEndPoseSolver", "Selecting default local optimizer");
                     local_optimizer_ = nlopt_algorithm::NLOPT_LD_MMA;  //NLOPT_LD_TNEWTON;
                 }
             }
