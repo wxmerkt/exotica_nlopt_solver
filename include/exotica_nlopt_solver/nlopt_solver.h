@@ -36,6 +36,7 @@
 #include <iostream>
 #include <set>
 #include <unordered_map>
+#include <memory>
 
 #include <exotica_core/motion_solver.h>
 #include <exotica_core/problems/bounded_end_pose_problem.h>
