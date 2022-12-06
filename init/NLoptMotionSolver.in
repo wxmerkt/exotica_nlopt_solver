@@ -3,3 +3,7 @@ class NLoptMotionSolver
 extend <exotica_core/motion_solver>
 Optional std::string Algorithm = "NLOPT_LD_TNEWTON";
 Optional std::string LocalOptimizer = "";  // Only needed for some algorithms, check the manual.
+Optional double RelativeFunctionTolerance = 1e-9;
+Optional double AbsoluteFunctionTolerance = 1e-9;
+Optional double RelativeVariableTolerance = 1e-9;
+Optional int MaxFunctionEvaluations = 10000;

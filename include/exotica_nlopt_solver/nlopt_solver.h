@@ -385,10 +385,10 @@ protected:
     virtual void set_constraints(nlopt_opt my_opt) {}  // To be reimplemented in constrained problems
     void set_tolerances(nlopt_opt my_opt)
     {
-        nlopt_set_maxeval(my_opt, 10000);  //10 * GetNumberOfMaxIterations());  // Note: Not strictly true - this is function evaluations and not iterations...
-        // nlopt_set_ftol_rel(my_opt, 1e-6);                            // TODO: Make parameters
-        nlopt_set_xtol_rel(my_opt, 1e-6);  // TODO: Make parameters
-        // nlopt_set_ftol_abs(my_opt, 1e-9);
+        nlopt_set_maxeval(my_opt, this->parameters_.MaxFunctionEvaluations);
+        nlopt_set_ftol_rel(my_opt, this->parameters_.RelativeFunctionTolerance);
+        nlopt_set_xtol_rel(my_opt, this->parameters_.RelativeVariableTolerance);
+        nlopt_set_ftol_abs(my_opt, this->parameters_.AbsoluteFunctionTolerance);
     }
 };
 
