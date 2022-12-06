@@ -34,9 +34,9 @@
 #define EXOTICA_NLOPT_SOLVER_NLOPT_SOLVER_H_
 
 #include <iostream>
+#include <memory>
 #include <set>
 #include <unordered_map>
-#include <memory>
 
 #include <exotica_core/motion_solver.h>
 #include <exotica_core/problems/bounded_end_pose_problem.h>
@@ -63,7 +63,8 @@ struct ProblemWrapperData
     Problem *problem = nullptr;
     Eigen::VectorXd q;
 
-    void reset() {
+    void reset()
+    {
         objective_function_evaluations = 0;
         inequality_function_evaluations = 0;
         equality_function_evaluations = 0;
@@ -419,7 +420,7 @@ void NLoptGenericEndPoseSolver<BoundedEndPoseProblem, NLoptBoundedEndPoseSolverI
     // Check if we need to modify the bounds based on velocity limits
     if (this->parameters_.BoundVelocities)
     {
-        const Eigen::VectorXd& jvl = prob_->GetScene()->GetKinematicTree().GetVelocityLimits();
+        const Eigen::VectorXd &jvl = prob_->GetScene()->GetKinematicTree().GetVelocityLimits();
         const Eigen::VectorXd incremental_motion = this->parameters_.dt * jvl;
 
         // Update the bounds based on the allowed incremental motion given the velocity limits and the timestep
