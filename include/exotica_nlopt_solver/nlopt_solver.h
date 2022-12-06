@@ -441,8 +441,21 @@ void NLoptGenericEndPoseSolver<BoundedEndPoseProblem, NLoptBoundedEndPoseSolverI
 template <>
 void NLoptGenericEndPoseSolver<EndPoseProblem, NLoptEndPoseSolverInitializer>::set_bounds(nlopt_opt my_opt)
 {
-    const Eigen::VectorXd lower_bounds = prob_->GetBounds().col(0);
-    const Eigen::VectorXd upper_bounds = prob_->GetBounds().col(1);
+    // Creating a copy since we are modifying it below - TODO: Do not create copies
+    Eigen::VectorXd lower_bounds = prob_->GetBounds().col(0);
+    Eigen::VectorXd upper_bounds = prob_->GetBounds().col(1);
+
+    // Check if we need to modify the bounds based on velocity limits
+    if (this->parameters_.BoundVelocities)
+    {
+        const Eigen::VectorXd &jvl = prob_->GetScene()->GetKinematicTree().GetVelocityLimits();
+        const Eigen::VectorXd incremental_motion = this->parameters_.dt * jvl;
+
+        // Update the bounds based on the allowed incremental motion given the velocity limits and the timestep
+        lower_bounds = lower_bounds.cwiseMax(data_->q - incremental_motion);
+        upper_bounds = upper_bounds.cwiseMin(data_->q + incremental_motion);
+    }
+
     {
         nlopt_result info = nlopt_set_lower_bounds(my_opt, lower_bounds.data());
         if (info != 1) WARNING("Error while setting lower bounds: " << (int)info << ": " << nlopt_get_errmsg(my_opt));

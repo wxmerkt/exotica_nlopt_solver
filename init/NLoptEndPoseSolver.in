@@ -1,4 +1,4 @@
 class NLoptEndPoseSolver
 
-extend <exotica_nlopt_solver/NLoptMotionSolver>
+extend <exotica_nlopt_solver/NLoptBoundedEndPoseSolver>
 Optional std::string Algorithm = "NLOPT_LD_AUGLAG";
