@@ -369,7 +369,13 @@ public:
         double final_cost_value;
         nlopt_result info = nlopt_optimize(opt, q0.data(), &final_cost_value);
         if (info < 0)
-            WARNING("Optimization did not exit cleanly! " << get_result_info(info));
+        {
+            auto msg = nlopt_get_errmsg(opt);
+            std::string err_msg{};
+            if (msg != nullptr) err_msg = std::string(msg);
+            WARNING("Optimization did not exit cleanly (code: " << (int)info << ")! " << get_result_info(info) << ": " << err_msg);
+            // Do not throw an exception since e.g. in iterative IK the result tends to go away on the following iteration
+        }
 
         solution.row(0) = q0;
         planning_time_ = timer.GetDuration();
