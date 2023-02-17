@@ -365,6 +365,11 @@ public:
         initial_step *= initial_step_scale;
         nlopt_set_initial_step(opt, initial_step.data());
 
+        Eigen::VectorXd lb(prob_->N), ub(prob_->N);
+        nlopt_get_lower_bounds(opt, lb.data());
+        nlopt_get_upper_bounds(opt, ub.data());
+        q0 = q0.cwiseMin(ub).cwiseMax(lb);  // Project to feasible bounds
+
         // Run the optimization
         double final_cost_value;
         nlopt_result info = nlopt_optimize(opt, q0.data(), &final_cost_value);
