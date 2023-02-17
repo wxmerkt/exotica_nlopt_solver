@@ -127,6 +127,7 @@ void end_pose_problem_equality_constraint_mfunc(unsigned m, double *result, unsi
 
 static inline std::string get_result_info(const nlopt_result &info)
 {
+    // or use nlopt_result_to_string
     switch (info)
     {
         case nlopt_result::NLOPT_FAILURE:
