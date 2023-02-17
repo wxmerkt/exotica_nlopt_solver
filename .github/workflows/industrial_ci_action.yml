@@ -9,14 +9,14 @@ jobs:
           - {ROS_DISTRO: melodic, CLANG_FORMAT_CHECK: file, CLANG_FORMAT_VERSION: "6.0"}
           # - {ROS_DISTRO: melodic, PRERELEASE: true}  # The system-provided NLopt on Melodic does not contain a CMake config.
           - {ROS_DISTRO: noetic, PRERELEASE: true}
-    env:
-      CCACHE_DIR: /github/home/.ccache # Enable ccache
+    # env:
+    #   CCACHE_DIR: /github/home/.ccache # Enable ccache
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/cache@v3
-        with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ccache-${{ matrix.env.ROS_DISTRO }}-${{ matrix.env.ROS_REPO }}
+      # - uses: actions/cache@v3
+      #   with:
+      #     path: ${{ env.CCACHE_DIR }}
+      #     key: ccache-${{ matrix.env.ROS_DISTRO }}-${{ matrix.env.ROS_REPO }}
       - uses: 'ros-industrial/industrial_ci@master'
         env: ${{ matrix.env }}
