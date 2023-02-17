@@ -17,6 +17,9 @@
                 <Links>
                     <Link Name="Target" />
                 </Links>
+
+                <JointVelocityLimits>0.5 0.5 0.5 0.5 0.5 0.5 0.5</JointVelocityLimits>
+                <JointAccelerationLimits>10 10 10 10 10 10 10</JointAccelerationLimits>
             </Scene>
         </PlanningScene>
 
