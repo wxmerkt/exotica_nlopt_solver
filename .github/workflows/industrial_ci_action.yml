@@ -1,5 +1,5 @@
 name: CI
-on: [push, pull_request] # on all pushes and PRs
+on: [push, pull_request]
 
 jobs:
   CI:
@@ -13,12 +13,10 @@ jobs:
       CCACHE_DIR: /github/home/.ccache # Enable ccache
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      # This step will fetch/store the directory used by ccache before/after the ci run
-      - uses: actions/cache@v2
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ccache-${{ matrix.env.ROS_DISTRO }}-${{ matrix.env.ROS_REPO }}
-      # Run industrial_ci
       - uses: 'ros-industrial/industrial_ci@master'
         env: ${{ matrix.env }}
