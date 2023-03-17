@@ -290,13 +290,17 @@ public:
 
     void SpecifyProblem(PlanningProblemPtr pointer) override
     {
-        if (pointer->type().find("EndPoseProblem") == std::string::npos)
+        if (pointer->type() != Problem().type())
         {
             ThrowNamed("NLoptGenericEndPoseSolver can't solve problem of type '"
-                       << pointer->type() << "'!");
+                       << pointer->type() << "'! This is a solver for type '" << Problem().type() << "'");
         }
         MotionSolver::SpecifyProblem(pointer);
         prob_ = std::static_pointer_cast<Problem>(pointer);
+        if (!prob_)
+        {
+            ThrowNamed("Converting the generic problem into the specific problem failed");
+        }
 
         // Create wrapper
         data_.reset(new ProblemWrapperData<Problem>(prob_.get()));
